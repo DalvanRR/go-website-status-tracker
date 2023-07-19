@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -11,7 +15,6 @@ const monitorings = 3
 const delay = 5
 
 func main() {
-
 	showIntroduction()
 	for {
 
@@ -23,8 +26,10 @@ func main() {
 		case 1:
 			startMonitoring()
 		case 2:
-			showLog()
+			fmt.Println("Showing logs...")
+			printLog()
 		case 0:
+			fmt.Println("Exiting program...")
 			exitProgram()
 			os.Exit(0)
 		default:
@@ -60,11 +65,6 @@ func readCommand() int {
 func startMonitoring() {
 	fmt.Println("Monitoring...")
 
-	// sites := []string{
-	// 	"https://random-status-code.herokuapp.com/",
-	// 	"https://alura.com.br",
-	// 	"https://caelum.com.br"}
-
 	sites := readFileSites()
 
 	for i := 0; i < monitorings; i++ {
@@ -97,8 +97,10 @@ func testSite(site string) {
 
 	if resp.StatusCode == 200 {
 		fmt.Println("Site:", site, "was successfully loaded!")
+		logRegistration(site, true)
 	} else {
 		fmt.Println("Site:", site, "is with problems. Status Code:", resp.StatusCode)
+		logRegistration(site, false)
 	}
 
 }
@@ -108,11 +110,44 @@ func readFileSites() []string {
 	var sites []string
 
 	file, err := os.Open("sites.txt")
-
 	if err != nil {
-		fmt.Println("An error occurred:", err)
+		fmt.Println("An error has occurred:", err)
 	}
 
-	fmt.Println(file)
+	reader := bufio.NewReader(file)
+
+	for {
+		line, err := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		sites = append(sites, line)
+		if err == io.EOF {
+			break
+		}
+	}
+
+	file.Close()
+
 	return sites
+}
+
+func logRegistration(site string, status bool) {
+	file, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	if err != nil {
+		fmt.Println("An error has occurred:", err)
+	}
+
+	file.WriteString(time.Now().Format("02/01/2006 15:04:05") + " - " + site + " - online: " + fmt.Sprint(status) + "\n")
+
+	file.Close()
+
+}
+func printLog() {
+	file, err := ioutil.ReadFile("log.txt")
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(string(file))
 }
